@@ -1,0 +1,237 @@
+package com.oauth2;
+
+import java.io.BufferedReader;
+import org.apache.http.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.util.*;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.AbstractHttpEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
+
+
+import com.google.api.client.auth.oauth2.draft10.AccessTokenResponse;
+import com.google.api.client.googleapis.auth.oauth2.draft10.GoogleAccessProtectedResource;
+import com.google.api.client.googleapis.auth.oauth2.draft10.GoogleAuthorizationRequestUrl;
+import com.google.api.client.googleapis.auth.oauth2.draft10.GoogleAccessTokenRequest.GoogleAuthorizationCodeGrant;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.services.latitude.Latitude;
+import com.google.api.services.latitude.model.LatitudeCurrentlocationResourceJson;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.view.View;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+public class Auth extends Activity {
+
+	public final String CLIENT_ID="988023935305-kgqqh7rbrkluj55ftniodbms1lb7ahk7.apps.googleusercontent.com";
+	public final String REDIRECT_URL="urn:ietf:wg:oauth:2.0:oob";
+	public final String SCOPE="https://www.googleapis.com/auth/latitude.current.best";
+	public final String CLIENT_SECRET="39d64YM7JM3Dyc2Fu4SSmipJ";
+	public final String AUTH_URL="http://cloudadhocconnectivity.appspot.com/auth";
+	public final String API_KEY="AIzaSyD9gVCXctC4OeCB5MphAigaEHL0nT2yQm8";
+	//public final String RESPONSE_TYPE="code";
+	SharedPreferences prefs;
+	static String code;
+	AccessTokenResponse accessTokenResponse;
+	CredentialStore credentialStore;
+	static Context example;
+	class AccessToken
+	{
+		String token;
+	}
+	/*class CodeInterface
+	{
+		//static String code;
+		/*public void getCode(String html)  
+		{  
+			System.out.println("Javascript called");
+			int index;
+			if((index=html.indexOf("code="))!=-1)
+			{
+				//this.code="sample";//html.substring(html.indexOf("code=")+5,html.length());
+				new AlertDialog.Builder(Auth.this) 
+			          .setTitle("CODE")  
+		             .setMessage(html.substring(html.indexOf("code=")+5,html.length()))  
+		            .setPositiveButton(android.R.string.ok, null)  
+		       .setCancelable(false)  
+		        .create()  
+			     .show();
+				code=html.substring(html.indexOf("code=")+5,html.length());	
+			}
+			
+			/*else
+			{
+				this.code="Null";
+			} 
+		}  
+	}*/
+	public void onCreate(Bundle savedInstanceState)
+	{
+		super.onCreate(savedInstanceState);
+		this.prefs=PreferenceManager.getDefaultSharedPreferences(this);
+	}
+	
+	@Override
+	public void onResume()
+	{
+		super.onResume();
+		final WebView web =new WebView(this);
+		web.getSettings().setJavaScriptEnabled(true);
+	    web.setVisibility(View.VISIBLE);
+	    setContentView(web);
+	    String authurl=new GoogleAuthorizationRequestUrl(CLIENT_ID,REDIRECT_URL,SCOPE).build();
+	    web.loadUrl(authurl);
+	    web.setWebViewClient(new WebViewClient()
+	    {
+	    	@Override
+	    	public void onPageStarted(WebView view, String url, Bitmap bitmap)
+	    	{
+	    		
+	    	}
+	    	@Override
+	    	public void onLoadResource(WebView view, String url)
+	    	{
+	    		/*if(url.indexOf("xsrf")!=-1)
+    		    {
+    		    	Auth.CodeInterface instance=new Auth.CodeInterface();
+    		    	web.addJavascriptInterface(instance,"handler");
+    				web.loadUrl("javascript:window.handler.getCode(document.getElementsByTagName('title')[0].innerHTML);");
+    			}*/
+	    	}
+	    	@Override
+	    	public void onPageFinished(WebView view, String url)
+	    	{
+	    		System.out.println("onPageFinished : " + url);
+	    		if(url.indexOf("xsrf")!=-1)
+    		    {
+	    			
+	    			//Auth.CodeInterface instance=new Auth.CodeInterface();
+    		    	//web.addJavascriptInterface(instance,"handler");
+    				//web.loadUrl("javascript:window.handler.getCode(document.getElementsByTagName('title')[0].innerHTML);");
+    				String title=web.getTitle();
+	    			code=title.substring(title.indexOf("code=")+5,title.length());
+	    			System.out.println(code);
+	    			try
+	    			{
+    	    			accessTokenResponse = new GoogleAuthorizationCodeGrant(new NetHttpTransport(),new JacksonFactory(),CLIENT_ID,CLIENT_SECRET,code,REDIRECT_URL).execute();
+    	    			System.out.println(accessTokenResponse);
+    	    			credentialStore = new SharedPreferencesCredentialStore(prefs);
+        	    		credentialStore.write(accessTokenResponse);
+        	    		/*JsonFactory jsonFactory = new JacksonFactory();
+        	    		HttpTransport transport = new NetHttpTransport();
+        				GoogleAccessProtectedResource accessProtectedResource = new GoogleAccessProtectedResource(accessTokenResponse.accessToken,
+        				 transport,jsonFactory,CLIENT_ID,CLIENT_SECRET,accessTokenResponse.refreshToken);
+        				final Latitude latitude = new Latitude(transport, accessProtectedResource, jsonFactory);
+        				System.out.println("Latitude Created");
+        				latitude.apiKey=API_KEY;
+        				System.out.println("");
+        				LatitudeCurrentlocationResourceJson Location = latitude.currentLocation.get().execute();
+        				System.out.println(Location);
+    	    			/*URL uri=new URL(AUTH_URL);
+    	    			StringBuilder data = new StringBuilder();
+        				data.append("token").append("=").append(accessTokenResponse.accessToken).append("&");
+        				data.append("expiry").append("=").append(accessTokenResponse.expiresIn.toString()).append("&");
+        				data.append("refresh").append("=").append(accessTokenResponse.refreshToken).append("&");
+        				data.append("scope").append("=").append(accessTokenResponse.scope).append("&");
+        				data.append("client_id").append("=").append(CLIENT_ID);
+        				HttpURLConnection connection = (HttpURLConnection) uri.openConnection();
+        				connection.setDoOutput(true);
+        		        connection.setUseCaches(false);
+        		        connection.setRequestMethod("POST");
+        		        connection.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
+        		        connection.connect();
+        		        OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
+        		        writer.write(data.toString());
+        		        writer.close();
+        		        //System.out.println(res);
+        		         if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+        		        	 
+        		        	 System.out.println("Token Posted");
+        		        	 
+        		         } else {
+        		             // Server returned HTTP error code.
+        		        	 System.out.println("HTTP ERROR CODE "+Integer.toString(connection.getResponseCode()));
+        		        	 System.out.println(connection.getResponseMessage());
+        		         }*/
+    	    		} 
+	    			catch (IOException e) {
+    	    			// TODO Auto-generated catch block
+    	    			e.printStackTrace();
+    	    		}
+    	    		
+    	    		//System.out.println(code);
+    	    		//System.out.println(accessTokenResponse);
+    	    		web.removeView(view);
+    	    		//startActivity(new Intent(Auth.this,LatitudeApiSample.class));	
+    	    		System.out.println("Loading LatitudeApiSample");
+    	    		try
+    	    		{
+    	    			HttpClient client =new DefaultHttpClient();
+    	    			HttpGet get=new HttpGet("https://www.googleapis.com/latitude/v1/currentLocation");
+    	    			get.setHeader("Authorization","OAuth oauth2-token ="+accessTokenResponse.accessToken);
+    	    			get.setHeader("Content-Type", "application/x-www-form-urlencoded");
+    	    			
+    	    			//List<NameValuePair> param = new ArrayList<NameValuePair>();
+    	    			//param.add(new BasicNameValuePair("key",API_KEY));
+    	    			//param.add(new BasicNameValuePair("granularity","best"));
+    	    			//ent.setContentType("Content-type", "application/xml; charset=utf-8");
+
+    	    			//AbstractHttpEntity ent=new UrlEncodedFormEntity(param);
+    	    			//ent.setContentType("application/x-www-form-urlencoded");
+    	    			//ent.setContentEncoding("UTF-8");
+    	    			//get.setEntity(ent);
+    	    			get.setURI(new URI("https://www.googleapis.com/latitude/v1/currentLocation"));
+    	    			HttpResponse response = client.execute(get);
+    	    			HttpEntity entity =response.getEntity();
+    	    			InputStream istream=entity.getContent();
+    	    			if(istream!=null)
+    	    			{
+    	    				BufferedReader reader=new BufferedReader(new InputStreamReader(istream));
+    	    				String input;
+    	    				while((input=reader.readLine())!=null)
+    	    				{
+    	    					System.out.println(input);
+    	    				}
+    	    			}
+    	    		}
+    	    		catch (ClientProtocolException e) {
+    	    	         // ...
+    	    	     } catch (IOException eio) {
+    	    	         // ...
+    	    	     }
+    	    		//startActivity(new Intent(Auth.this,LatitudeApiSample.class));
+    	    			catch (URISyntaxException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+    		    }}
+	    	//}
+	    });
+	    //web.loadUrl(authurl);*/
+	    }
+}
